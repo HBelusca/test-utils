@@ -2,7 +2,7 @@
 //
 
 #include "stdafx.h"
-#include "HardError.h"
+#include "Resource.h"
 #include <strsafe.h>
 
 
@@ -90,6 +90,7 @@ typedef NTSTATUS(NTAPI *tNtRaiseHardError)(NTSTATUS ErrorStatus, ULONG NumberOfP
 
 inline
 static HardErrorResponse DisplayNativeMessageBox(
+    NTSTATUS Status,
     PCWSTR Message,
     PCWSTR Title,
     HardErrorResponseIcon Icon,
@@ -126,7 +127,7 @@ static HardErrorResponse DisplayNativeMessageBox(
     pRtlInitUnicodeString(&UnicodeTitle, Title);
     pRtlInitUnicodeString(&UnicodeText, Message);
 
-    pNtRaiseHardError(STATUS_SERVICE_NOTIFICATION | HARDERROR_OVERRIDE_ERRORMODE, _countof(params), 1 | 2, params, ResponseType, &Response);
+    pNtRaiseHardError(Status, _countof(params), 1 | 2, params, ResponseType, &Response);
     return Response;
 }
 
@@ -249,16 +250,26 @@ static void ParseOptions(HWND hDlg, bool execute)
     char DefBtnText[MAX_PATH] = "";
     char IconText[MAX_PATH] = "";
     char OptionText[MAX_PATH] = "";
-
+    char StatusText[MAX_PATH] = "";
 
     HardErrorResponseType ResponseType = (HardErrorResponseType)ParseOption(hDlg, ResponseTypeInfo, TypeText, _countof(TypeText));
     HardErrorResponseButton ResponseButton = (HardErrorResponseButton)ParseOption(hDlg, ResponseButtonInfo, ButtonText, _countof(ButtonText));
     HardErrorResponseDefaultButton ResponseDefBtn = (HardErrorResponseDefaultButton)ParseOption(hDlg, ResponseDefaultButtonInfo, DefBtnText, _countof(DefBtnText));
     HardErrorResponseIcon ResponseIcon = (HardErrorResponseIcon)ParseOption(hDlg, ResponseIconInfo, IconText, _countof(IconText));
     HardErrorResponseOptions ResponseOptions = (HardErrorResponseOptions)ParseOption(hDlg, ResponseOptionInfo, OptionText, _countof(OptionText));
+    NTSTATUS Status = STATUS_SERVICE_NOTIFICATION | HARDERROR_OVERRIDE_ERRORMODE;
 
     HardErrorResponse Response = ResponseNotHandled;
     const char* ResponseText = "???";
+
+    GetDlgItemTextA(hDlg, IDC_STATUS, StatusText, _countof(StatusText));
+    if (StatusText[0])
+    {
+        const char* ptr = StatusText;
+        if (ptr[0] == '0' && tolower(ptr[1]) == 'x')
+            ptr += 2;
+        Status = strtol(ptr, NULL, 16);
+    }
 
     if (execute)
     {
@@ -268,22 +279,31 @@ static void ParseOptions(HWND hDlg, bool execute)
         GetDlgItemTextW(hDlg, IDC_TITLE, Title, _countof(Title));
         GetDlgItemTextW(hDlg, IDC_TEXT, Text, _countof(Text));
 
-        Response = DisplayNativeMessageBox(Text, Title, ResponseIcon, ResponseButton, ResponseDefBtn, ResponseOptions, ResponseType);
+        Response = DisplayNativeMessageBox(Status, Text, Title, ResponseIcon, ResponseButton, ResponseDefBtn, ResponseOptions, ResponseType);
         ResponseText = Response2Str(Response);
     }
 
+    if (Status == (STATUS_SERVICE_NOTIFICATION | HARDERROR_OVERRIDE_ERRORMODE))
+    {
+        StringCchCopyA(StatusText, _countof(StatusText), "(STATUS_SERVICE_NOTIFICATION | HARDERROR_OVERRIDE_ERRORMODE)");
+    }
+    else
+    {
+        StringCchPrintfA(StatusText, _countof(StatusText), "0x%x", Status);
+    }
 
     char AllText[MAX_PATH * 5];
     StringCchPrintfA(AllText, _countof(AllText),
                      "ULONG Flags = %s | %s | %s | %s;\r\n"
                      "ULONG_PTR params[4] = { UnicodeText, UnicodeTitle, Flags, INFINITE };\r\n"
-                     "NTSTATUS Status = STATUS_SERVICE_NOTIFICATION | HARDERROR_OVERRIDE_ERRORMODE;\r\n"
+                     "NTSTATUS Status = %s;\r\n"
                      "NtRaiseHardError(Status, 4, 3, params, %s, &Response);\r\n"
                      "// Response = %s",
                      ButtonText,
                      IconText,
                      DefBtnText,
                      OptionText,
+                     StatusText,
                      TypeText,
                      ResponseText);
 

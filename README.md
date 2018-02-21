@@ -10,7 +10,11 @@ Shows a "borderless maximized" window, showing that the taskbar stops being alwa
 
 
 ## HardError
-Call the native api NtRaiseHardError with configurable arguments
+Call the native api NtRaiseHardError with configurable arguments.
+
+
+## LoadDllAtAddress
+Load system dlls, or load a test dll at a specific address.
 
 
 ## ShowVersion

@@ -102,6 +102,7 @@ DisplayNativeMessageBox(
     NTSTATUS Status,
     PCWSTR Message,
     PCWSTR Title,
+    ULONG Timeout,
     PULONG_PTR pParams,
     ULONG NumberOfParams,
     HardErrorIcon Icon,
@@ -123,7 +124,7 @@ DisplayNativeMessageBox(
             (ULONG)Style |
             (ULONG)DefButton
         ),
-        INFINITE
+        Timeout
     };
     ULONG UnicodeStringParameterMask = 1 | 2;
 
@@ -298,6 +299,7 @@ static void ParseOptions(HWND hDlg, bool execute)
     char IconText[MAX_PATH] = "";
     char OptionText[MAX_PATH] = "";
     char StatusText[MAX_PATH] = "";
+    char TimeoutText[MAX_PATH] = "";
 
     HARDERROR_RESPONSE_OPTION ResponseType = (HARDERROR_RESPONSE_OPTION)ParseOption(hDlg, ResponseTypeInfo, TypeText, _countof(TypeText));
     HardErrorResponseButton ResponseButton = (HardErrorResponseButton)ParseOption(hDlg, ResponseButtonInfo, ButtonText, _countof(ButtonText));
@@ -305,6 +307,7 @@ static void ParseOptions(HWND hDlg, bool execute)
     HardErrorIcon ResponseIcon = (HardErrorIcon)ParseOption(hDlg, ResponseIconInfo, IconText, _countof(IconText));
     HardErrorStyle Styles = (HardErrorStyle)ParseOption(hDlg, StyleInfo, OptionText, _countof(OptionText));
     NTSTATUS Status = STATUS_SERVICE_NOTIFICATION | HARDERROR_OVERRIDE_ERRORMODE;
+    ULONG Timeout = INFINITE; /* Infinite timeout */
     UINT nParams = 0;
     ULONG_PTR params[MAXIMUM_HARDERROR_PARAMETERS] = {0, 0, 0, 0, 0};
 
@@ -323,10 +326,24 @@ static void ParseOptions(HWND hDlg, bool execute)
         }
     }
 
+    GetDlgItemTextA(hDlg, IDC_TIMEOUT, TimeoutText, _countof(TimeoutText));
+    if (TimeoutText[0])
+    {
+        char* ptr = NULL;
+        Timeout = strtoul(TimeoutText, &ptr, 10);
+        if (*ptr)
+        {
+            /* Infinite timeout */
+            Timeout = INFINITE;
+        }
+    }
+
     if ((Status & ~HARDERROR_OVERRIDE_ERRORMODE) == STATUS_SERVICE_NOTIFICATION)
     {
         nParams = 4;
-        StringCchCopyA(ParamsText, _countof(ParamsText), "UnicodeText, UnicodeTitle, Flags, INFINITE");
+        StringCchPrintfA(ParamsText, _countof(ParamsText),
+                         "UnicodeText, UnicodeTitle, Flags, %s",
+                         Timeout == INFINITE ? "INFINITE" : TimeoutText);
     }
     else
     {
@@ -357,7 +374,7 @@ static void ParseOptions(HWND hDlg, bool execute)
             NumberOfParams = nParams; // _countof(params);
         }
 
-        Response = DisplayNativeMessageBox(Status, Text, Title,
+        Response = DisplayNativeMessageBox(Status, Text, Title, Timeout,
                                            pParams, NumberOfParams,
                                            ResponseIcon, ResponseButton, ResponseDefBtn,
                                            Styles, ResponseType);
@@ -441,7 +458,6 @@ INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
         SetDlgItemTextA(hDlg, IDC_TEXT , "Text");
 
         SendDlgItemMessage(hDlg, IDC_PARAMNUM_SPIN, UDM_SETRANGE, 0, MAKELPARAM(MAXIMUM_HARDERROR_PARAMETERS, 1));
-        SetDlgItemInt(hDlg, IDC_PARAMNUM, 4, FALSE);
         EnableParamEdits(hDlg, 4);
         ParseOptions(hDlg, false);
 
@@ -518,6 +534,6 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     UNREFERENCED_PARAMETER(hPrevInstance);
     UNREFERENCED_PARAMETER(lpCmdLine);
 
-    DialogBox(hInstance, MAKEINTRESOURCE(IDD_ABOUTBOX), NULL, About);
+    DialogBox(hInstance, MAKEINTRESOURCE(IDD_HARDERROR_DIALOG), NULL, About);
     return 0;
 }

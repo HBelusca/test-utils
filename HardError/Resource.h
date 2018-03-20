@@ -3,7 +3,6 @@
 // Used by HardError.rc
 //
 #define IDD_HARDERROR_DIALOG            102
-#define IDD_ABOUTBOX                    103
 #define IDC_RADIO1                      1000
 #define IDC_RADIO2                      1001
 #define IDC_RADIO3                      1002
@@ -46,6 +45,7 @@
 #define IDC_OUTPUT                      1045
 #define IDC_GO                          1046
 #define IDC_STATUS                      1047
+#define IDC_TIMEOUT                     1048
 #define IDC_PARAMNUM                    1050
 #define IDC_PARAMNUM_SPIN               1051
 #define IDC_PARAM0                      1052

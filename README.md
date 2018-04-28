@@ -26,6 +26,13 @@ Shows the result of various Version api's with and without a compatibility secti
 * VerifyVersionInfoW
 
 
+## TestCallbacks
+Show debug info at various (system) callbacks.
+* CreateThread
+* CreateRemoteThread
+* CreateRemoteThreadEx
+
+
 ## TooltipsTester
 Shows proper usage of the TOOLTIPS window class, and its messages and notificatons.
 For now:
